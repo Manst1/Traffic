@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic</title>
+    <link rel="icon" type="image/png" href="https://i.imgur.com/peGkd08.png">		
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        html { overflow-y: scroll; }
+        .pattern-container { position: relative; }
+        .pattern-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 50px;
+            height: 100%;
+            background-image: url('https://www.transparenttextures.com/patterns/diagonal-striped-brick.png');
+            background-repeat: repeat-y;
+            opacity: 0.3;
+            z-index: 0;
+        }
+        .content { position: relative; z-index: 1; }
+        .tab-active { background-color: #2563eb; color: white; }
+        .header-container {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background-color: #2563eb;
+            width: 100%;
+        }
+        .nav-container {
+            position: sticky;
+            top: 64px;
+            z-index: 10;
+            background-color: white;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        body {
+            padding-right: var(--scrollbar-width, 0px);
+            box-sizing: border-box;
+        }
+        main {
+            padding-top: calc(64px + 56px + 24px);
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+            padding-bottom: 1.5rem;
+        }
+        #overview-section { margin-top: 1.5rem; }
+        .flashcard {
+            perspective: 1000px;
+            width: 300px;
+            height: 400px;
+        }
+        .flashcard-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+        .flashcard-front, .flashcard-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .flashcard-back { transform: rotateY(180deg); }
+        .mode-btn {
+            background-color: #e5e7eb;
+            color: #1f2937;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            border: none;
+        }
+        .mode-btn.active {
+            background-color: #2563eb;
+            color: white;
+        }
+        .mode-btn:focus { outline: 2px solid #93c5fd; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="min-h-screen bg-gradient-to-b from-blue-50 to-gray-100 flex flex-col pattern-container">
+        <header class="header-container bg-blue-600 text-white p-4 shadow-lg">
+            <div class="max-w-md mx-auto">
+                <h1 class="text-3xl font-bold text-center">Traffic - Geepel</h1>
+            </div>
+        </header>
+        <nav class="nav-container shadow-md p-2">
+            <div class="flex justify-between max-w-md mx-auto">
+                <button id="overview-tab" class="tab-active px-4 py-2 text-sm font-semibold rounded hover:bg-blue-500 hover:text-white transition flex-1 text-center">Overview</button>
+                <button id="flashcards-tab" class="px-4 py-2 text-sm font-semibold rounded hover:bg-blue-500 hover:text-white transition flex-1 text-center">Flash Cards</button>
+                <button id="test-tab" class="px-4 py-2 text-sm font-semibold rounded hover:bg-blue-500 hover:text-white transition flex-1 text-center">Test Yourself</button>
+            </div>
+        </nav>
+        <main class="container mx-auto p-6 content flex-1">
+            <section id="overview-section" class="grid grid-cols-1 gap-12 max-w-md mx-auto"></section>
+            <section id="flashcards-section" class="hidden flex flex-col items-center max-w-md mx-auto">
+                <div class="mb-4">
+                    <label class="inline-flex items-center mr-4"><input type="radio" name="flashcard-mode" value="random" checked class="mr-2"><span>Random</span></label>
+                    <label class="inline-flex items-center"><input type="radio" name="flashcard-mode" value="alphabetical" class="mr-2"><span>Alphabetical</span></label>
+                </div>
+                <div class="flashcard" id="flashcard-container">
+                    <div class="flashcard-inner">
+                        <div class="flashcard-front">
+                            <img id="flashcard-image" src="" alt="Animal" class="w-48 h-48 object-cover rounded mb-4">
+                            <h2 class="text-xl font-semibold text-gray-800" id="flashcard-word"></h2>
+                        </div>
+                        <div class="flashcard-back">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4" id="flashcard-translation"></h2>
+                            <button class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition" id="next-flashcard">Next Card</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+<section id="test-section" class="hidden flex flex-col items-center max-w-md mx-auto origin-top" style="transform: scale(1.065);">
+    <div class="flex gap-2 mb-4">
+        <button class="mode-btn active" data-mode="standard">Standard</button>
+        <button class="mode-btn" data-mode="learn">Learn</button>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-md p-6 w-full min-h-[380px] flex flex-col justify-between">
+        <div>
+            <img id="test-image" src="" alt="Animal" class="w-48 h-48 object-cover rounded mb-4 mx-auto">
+            <input id="test-input" type="text" placeholder="Enter translation" class="border border-gray-300 rounded p-2 mb-4 w-full">
+            <div class="flex justify-between">
+                <button id="test-submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">Submit</button>
+                <button id="skip-test" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">Skip</button>
+            </div>
+        </div>
+        
+        <div class="min-h-[3rem] flex items-center justify-center mt-2">
+            <p id="test-feedback" class="text-lg text-center"></p>
+        </div>
+    </div>
+    
+    <div class="mt-4 text-center">
+        <p id="test-progress" class="text-gray-600"></p>
+    </div>
+</section>
+        </main>
+    </div>
+	    <script data-goatcounter="https://manst1.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+    <script>
+        const animals = [
+            { word: "Street", translation: "Bavla", testTranslations: ["Bavla"], image: "https://i.imgur.com/C30w4xR.png", link: "https://example.com/monkey" },
+            { word: "Traffic Light", translation: "Rasgröampel", testTranslations: ["Rasgröampel"], image: "https://i.imgur.com/NvVWowG.png", link: "https://example.com/lion" },
+            { word: "Roundabout", translation: "Pitech", testTranslations: ["Pitech"], image: "https://i.imgur.com/bKcVPX2.png", link: "https://example.com/elephant" },
+            { word: "Crosswalk", translation: "Cergo Stonk", testTranslations: ["Cergo Stonk"], image: "https://i.imgur.com/A71xvdS.png", link: "https://example.com/lion" },
+            { word: "Tire", translation: "Rata", testTranslations: ["Rata"], image: "https://i.imgur.com/8yOM2Ya.png", link: "https://example.com/lion" },
+            { word: "Sign", translation: "Eschletwa", testTranslations: ["Eschletwa"], image: "https://i.imgur.com/yFC2O65.png", link: "https://example.com/lion" },
+            { word: "Stop Sign", translation: "Lakt Emnis", testTranslations: ["Lakt Emnis"], image: "https://i.imgur.com/1UoFBW3.png", link: "https://example.com/monkey" },
+            { word: "Yield Sign", translation: "Torinduna Emnis", testTranslations: ["Torinduna Emnis"], image: "https://i.imgur.com/peGkd08.png", link: "https://example.com/dog" },
+            { word: "Tunnel", translation: "Lolanepa", testTranslations: ["Lolanepa"], image: "https://i.imgur.com/DOgYmMe.png", link: "https://example.com/elephant" },
+            { word: "Highway", translation: "Bavimia", testTranslations: ["Bavimia"], image: "https://i.imgur.com/DxPb2l7.png", link: "https://example.com/lion" },
+            { word: "Parking Lot", translation: "Austaticum", testTranslations: ["Austaticum"], image: "https://i.imgur.com/5x6IskN.png", link: "https://example.com/lion" },
+            { word: "Gas Station", translation: "Najin", testTranslations: ["Najin"], image: "https://i.imgur.com/jQfKfeq.png", link: "https://example.com/lion" },
+            { word: "Petrol", translation: "Clomint", testTranslations: ["Clomint"], image: "https://i.imgur.com/bSuf3lC.png", link: "https://example.com/lion" },
+            { word: "Sidewalk", translation: "Orbat", testTranslations: ["Orbat"], image: "https://i.imgur.com/JNyX5dV.png", link: "https://example.com/lion" }
+        ];
+
+        // DOM elements
+        const overviewSection = document.getElementById('overview-section');
+        const flashcardsSection = document.getElementById('flashcards-section');
+        const testSection = document.getElementById('test-section');
+        const overviewTab = document.getElementById('overview-tab');
+        const flashcardsTab = document.getElementById('flashcards-tab');
+        const testTab = document.getElementById('test-tab');
+        
+        // Flashcard elements
+        const flashcardContainer = document.getElementById('flashcard-container');
+        const flashcardImage = document.getElementById('flashcard-image');
+        const flashcardWord = document.getElementById('flashcard-word');
+        const flashcardTranslation = document.getElementById('flashcard-translation');
+        const nextFlashcardBtn = document.getElementById('next-flashcard');
+        
+        // Test elements
+        const testImage = document.getElementById('test-image');
+        const testInput = document.getElementById('test-input');
+        const testSubmit = document.getElementById('test-submit');
+        const skipTestBtn = document.getElementById('skip-test');
+        const testFeedback = document.getElementById('test-feedback');
+        const testProgress = document.getElementById('test-progress');
+        const modeBtns = document.querySelectorAll('.mode-btn');
+
+        // State
+        let currentFlashcardIndex = 0;
+        let currentTestIndex = 0;
+        let recentlyTestedIndices = [];
+        let recentlyFlashcardIndices = [];
+        let flashcardMode = 'random';
+        let isWaitingForCorrect = false; // prevents multiple submissions while showing feedback
+        
+        // ----- LEARN MODE state -----
+        let testMode = 'standard';         // 'standard' or 'learn'
+        let learnQueue = [];               // array of indices (order to present)
+        let learnCurrentPos = 0;           // position in learnQueue
+        let learnAnswered = new Set();     // indices already correctly answered in current run
+        let learnRunComplete = false;      // flag to trigger reshuffle
+
+        // ----- helpers -----
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // Build a fresh learn queue (random order of all indices)
+        function buildLearnQueue() {
+            const indices = animals.map((_, i) => i);
+            shuffleArray(indices);
+            learnQueue = indices;
+            learnCurrentPos = 0;
+            learnAnswered = new Set();
+            learnRunComplete = false;
+        }
+
+        // Get the current learn item (or null if done)
+        function getCurrentLearnItem() {
+            if (learnQueue.length === 0) {
+                buildLearnQueue();
+            }
+            if (learnCurrentPos >= learnQueue.length) {
+                learnRunComplete = true;
+                buildLearnQueue();
+                return animals[learnQueue[learnCurrentPos]];
+            }
+            return animals[learnQueue[learnCurrentPos]];
+        }
+
+        // Insert an index back into the queue at a random position (not within next 3 if possible)
+        function reinsertLearnIndex(idx) {
+            // remove from current position
+            learnQueue.splice(learnCurrentPos, 1);
+            // we want to insert it somewhere after the next 3 positions (if possible)
+            let insertPos;
+            const minPos = Math.min(learnQueue.length, learnCurrentPos + 3);
+            if (learnQueue.length === 0) {
+                insertPos = 0;
+            } else {
+                insertPos = minPos + Math.floor(Math.random() * (learnQueue.length - minPos + 1));
+                if (insertPos > learnQueue.length) insertPos = learnQueue.length;
+            }
+            learnQueue.splice(insertPos, 0, idx);
+        }
+
+        // ----- test functions -----
+        function getNextTestIndex() {
+            if (testMode === 'standard') {
+                // standard: random with recent avoidance
+                const allIndices = animals.map((_, i) => i);
+                const available = allIndices.filter(i => !recentlyTestedIndices.includes(i));
+                let idx;
+                if (available.length === 0) {
+                    recentlyTestedIndices = [];
+                    idx = Math.floor(Math.random() * animals.length);
+                } else {
+                    idx = available[Math.floor(Math.random() * available.length)];
+                }
+                recentlyTestedIndices.push(idx);
+                if (recentlyTestedIndices.length > 10) recentlyTestedIndices.shift();
+                return idx;
+            } else {
+                // LEARN mode: get from queue
+                if (learnQueue.length === 0 || learnCurrentPos >= learnQueue.length) {
+                    buildLearnQueue();
+                }
+                const idx = learnQueue[learnCurrentPos];
+                return idx;
+            }
+        }
+
+        function showTestQuestion() {
+            let idx;
+            if (testMode === 'standard') {
+                idx = getNextTestIndex();
+                currentTestIndex = idx;
+            } else {
+                // learn mode
+                if (learnQueue.length === 0 || learnCurrentPos >= learnQueue.length) {
+                    buildLearnQueue();
+                }
+                idx = learnQueue[learnCurrentPos];
+                currentTestIndex = idx;
+            }
+            const animal = animals[idx];
+            testImage.src = animal.image;
+            testInput.value = '';
+            testFeedback.textContent = '';
+            testFeedback.className = 'text-lg mt-4 text-center';
+            testInput.focus();
+            updateTestProgress();
+            testSubmit.disabled = false;
+            skipTestBtn.disabled = false;
+            isWaitingForCorrect = false;
+        }
+
+function checkAnswer() {
+    if (testSubmit.disabled || isWaitingForCorrect) return;
+    
+    const userInput = testInput.value.trim().toLowerCase();
+    const animal = animals[currentTestIndex];
+    const correct = animal.testTranslations.map(t => t.toLowerCase());
+    const isCorrect = correct.includes(userInput);
+
+    if (isCorrect) {
+        testFeedback.textContent = 'Correct!';
+        testFeedback.className = 'text-lg mt-4 text-center text-green-600';
+        isWaitingForCorrect = true;
+        testSubmit.disabled = true;
+        skipTestBtn.disabled = true;
+
+        if (testMode === 'learn') {
+            // Check if the user got it wrong previously on this current card
+            const wasIncorrect = testFeedback.dataset.wasIncorrect === "true";
+
+            if (wasIncorrect) {
+                // Remove from current position and re-insert 3+ positions later
+                const currentIdx = learnQueue[learnCurrentPos];
+                learnQueue.splice(learnCurrentPos, 1);
+
+const minPos = Math.min(learnCurrentPos + 3, learnQueue.length);
+
+const insertPos =
+    minPos + Math.floor(Math.random() * (learnQueue.length - minPos + 1));
+
+learnQueue.splice(insertPos, 0, currentIdx);
+                // Reset flag for the next card
+                delete testFeedback.dataset.wasIncorrect;
+            } else {
+                // If answered correctly on the first try, mark as answered and move forward
+                learnAnswered.add(currentTestIndex);
+                learnCurrentPos++;
+            }
+
+            if (learnCurrentPos >= learnQueue.length) {
+                buildLearnQueue();
+            }
+        }
+
+        setTimeout(() => {
+            if (testMode === 'standard') {
+                currentTestIndex = getNextTestIndex();
+            }
+            showTestQuestion();
+        }, 455);
+
+    } else {
+        // Wrong answer - prompt user to retry, stay on same word
+        testFeedback.textContent = `Incorrect. The correct answer is "${animal.testTranslations.join(' / ')}"`;
+        testFeedback.className = 'text-lg mt-4 text-center text-red-600';
+        testInput.value = '';
+        testInput.focus();
+        
+        if (testMode === 'learn') {
+            // Flag that this item was missed so we push it back in line once solved
+            testFeedback.dataset.wasIncorrect = "true";
+        }
+    }
+}
+
+        function skipQuestion() {
+            if (isWaitingForCorrect) return;
+            
+            if (testMode === 'standard') {
+                currentTestIndex = getNextTestIndex();
+                showTestQuestion();
+            } else {
+                // Learn mode: skip means we reinsert and move on
+                if (learnQueue.length > 0 && learnCurrentPos < learnQueue.length) {
+                    const idx = learnQueue[learnCurrentPos];
+                    // Remove from current position
+                    learnQueue.splice(learnCurrentPos, 1);
+                    // Reinsert at random position (not within next 3)
+const minPos = Math.min(learnCurrentPos + 3, learnQueue.length);
+
+const insertPos =
+    minPos + Math.floor(Math.random() * (learnQueue.length - minPos + 1));
+
+learnQueue.splice(insertPos, 0, idx);
+                }
+                showTestQuestion();
+            }
+        }
+
+        function updateTestProgress() {
+            if (testMode === 'standard') {
+                testProgress.textContent = `${animals.length} words in total`;
+            } else {
+                const total = learnQueue.length;
+                const remaining = total - learnCurrentPos;
+                testProgress.textContent = `Learn mode: ${remaining} remaining · ${learnAnswered.size} correct this round`;
+            }
+        }
+
+        // ----- init / setup -----
+        function init() {
+            animals.sort((a, b) => a.word.localeCompare(b.word));
+            preloadImages().then(() => {
+                populateOverview();
+                setupFlashcards();
+                setupTest();
+                showSection('overview-section');
+            });
+
+            overviewTab.addEventListener('click', () => showSection('overview-section'));
+            flashcardsTab.addEventListener('click', () => showSection('flashcards-section'));
+            testTab.addEventListener('click', () => showSection('test-section'));
+
+            document.querySelectorAll('input[name="flashcard-mode"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    flashcardMode = e.target.value;
+                    if (flashcardMode === 'random') {
+                        recentlyFlashcardIndices = [];
+                        currentFlashcardIndex = getRandomFlashcardIndex();
+                    } else {
+                        currentFlashcardIndex = 0;
+                    }
+                    showFlashcard();
+                });
+            });
+
+            // mode toggle for test
+            modeBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    modeBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    testMode = btn.dataset.mode;
+                    if (testMode === 'learn') {
+                        buildLearnQueue();
+                    } else {
+                        recentlyTestedIndices = [];
+                    }
+                    showTestQuestion();
+                });
+            });
+
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            document.documentElement.style.setProperty('--scrollbar-width', `${scrollbarWidth}px`);
+        }
+
+        function preloadImages() {
+            return new Promise((resolve) => {
+                let loaded = 0;
+                animals.forEach(animal => {
+                    const img = new Image();
+                    img.src = animal.image;
+                    img.onload = () => { loaded++; if (loaded === animals.length) resolve(); };
+                    img.onerror = () => { loaded++; if (loaded === animals.length) resolve(); };
+                });
+            });
+        }
+
+        function populateOverview() {
+            overviewSection.innerHTML = '';
+            animals.forEach(animal => {
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-lg shadow-md overflow-hidden transform transition hover:scale-105 min-h-[140px] flex p-5';
+                card.innerHTML = `
+                    <div class="flex w-full h-full">
+                        <div class="flex flex-col items-start">
+                            <img src="${animal.image}" alt="${animal.word}" class="w-20 h-20 object-cover rounded mb-2">
+                            <h3 class="text-lg font-semibold text-gray-800 pl-2">${animal.word}</h3>
+                        </div>
+                        <div class="flex-1 flex items-center justify-end">
+                            <h2 class="text-xl font-semibold text-gray-800">${animal.translation}</h2>
+                        </div>
+                    </div>
+                `;
+                overviewSection.appendChild(card);
+            });
+        }
+
+        // Flashcard functions
+        function setupFlashcards() {
+            if (flashcardMode === 'random') {
+                currentFlashcardIndex = getRandomFlashcardIndex();
+            } else {
+                currentFlashcardIndex = 0;
+            }
+            showFlashcard();
+            flashcardContainer.addEventListener('click', flipFlashcard);
+            nextFlashcardBtn.addEventListener('click', nextFlashcard);
+        }
+
+        function showFlashcard() {
+            const animal = animals[currentFlashcardIndex];
+            flashcardImage.src = animal.image;
+            flashcardWord.innerHTML = animal.word;
+            flashcardTranslation.textContent = animal.translation;
+            flashcardContainer.classList.remove('flipped');
+        }
+
+        function flipFlashcard() {
+            flashcardContainer.classList.toggle('flipped');
+        }
+
+        function getRandomFlashcardIndex() {
+            const allIndices = animals.map((_, index) => index);
+            const availableIndices = allIndices.filter(index => !recentlyFlashcardIndices.includes(index));
+            if (availableIndices.length === 0) {
+                recentlyFlashcardIndices = [];
+                return Math.floor(Math.random() * animals.length);
+            }
+            const randomIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+            recentlyFlashcardIndices.push(randomIndex);
+            if (recentlyFlashcardIndices.length > 10) recentlyFlashcardIndices.shift();
+            return randomIndex;
+        }
+
+        function nextFlashcard(event) {
+            event.stopPropagation();
+            const flashcardInner = flashcardContainer.querySelector('.flashcard-inner');
+            flashcardInner.style.transition = 'none';
+            flashcardContainer.classList.remove('flipped');
+            if (flashcardMode === 'random') {
+                currentFlashcardIndex = getRandomFlashcardIndex();
+            } else {
+                currentFlashcardIndex = (currentFlashcardIndex + 1) % animals.length;
+            }
+            showFlashcard();
+            void flashcardInner.offsetWidth;
+            setTimeout(() => { flashcardInner.style.transition = 'transform 0.6s'; }, 50);
+        }
+
+        function setupTest() {
+            buildLearnQueue();
+            testMode = 'standard';
+            document.querySelector('.mode-btn[data-mode="standard"]').classList.add('active');
+            document.querySelector('.mode-btn[data-mode="learn"]').classList.remove('active');
+            recentlyTestedIndices = [];
+            currentTestIndex = getNextTestIndex();
+            showTestQuestion();
+            testSubmit.addEventListener('click', checkAnswer);
+            skipTestBtn.addEventListener('click', skipQuestion);
+            testInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    checkAnswer();
+                }
+            });
+        }
+
+        function showSection(sectionId) {
+            overviewSection.classList.add('hidden');
+            flashcardsSection.classList.add('hidden');
+            testSection.classList.add('hidden');
+            overviewTab.classList.remove('tab-active');
+            flashcardsTab.classList.remove('tab-active');
+            testTab.classList.remove('tab-active');
+            document.getElementById(sectionId).classList.remove('hidden');
+            document.getElementById(`${sectionId}-tab`).classList.add('tab-active');
+            if (sectionId === 'flashcards-section') {
+                if (flashcardMode === 'random') currentFlashcardIndex = getRandomFlashcardIndex();
+                else currentFlashcardIndex = 0;
+                showFlashcard();
+            } else if (sectionId === 'test-section') {
+                if (testMode === 'learn') buildLearnQueue();
+                else recentlyTestedIndices = [];
+                showTestQuestion();
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
